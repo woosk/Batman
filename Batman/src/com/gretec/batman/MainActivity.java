@@ -7,6 +7,8 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -46,7 +48,8 @@ public class MainActivity extends Activity {
 	private Boolean 			mBluetoothEnabled = false;
     private ProgressBar 		mProgress;
     
-	private static final int REQUEST_ENABLE_BT = 1;
+    private static final int REQUEST_DISCOVERY	= 1;
+	private static final int REQUEST_ENABLE_BT = 2;
 	private BluetoothAdapter mBluetoothAdapter;
     
 	private Button mSendButton;
@@ -90,34 +93,87 @@ public class MainActivity extends Activity {
         }
     };
     
-    private static int clickCount = 0;
+    private int updateCount = 0;
     
     private View.OnClickListener mSendClickListener = new View.OnClickListener() {
 		
 		@Override
 		public void onClick(View v) {
-			Log.d(TAG, "Send to device" + clickCount%2);
-			if (mBTSocket.isConnected()) {
-				//mSendButton.setEnabled(true);
-				//Character a = Character.valueOf('A');
-				char a = clickCount%2==1? '0':'1';
-				try {
-					mBTOutputStream.write((int)a);
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			++clickCount;
+			Log.d(TAG, "Send to device" + updateCount%2);
+			//updateDeviceInfo();
+			updateTimerToggle();
 		}
 	};
+	
+	private boolean mUpdateTimerStarted = false;
+	private Timer mUpdateTimer;
     
+	private void updateTimerToggle() {
+		if (mUpdateTimerStarted) {
+			mUpdateTimer.cancel();
+			mUpdateTimer.purge();
+			updateCount = updateCount%2;
+			mUpdateTimerStarted = false;
+		}
+		else {
+			mUpdateTimer = new Timer();
+			mUpdateTimer.scheduleAtFixedRate(new TimerTask() {
+	
+				@Override
+				public void run() {
+					// TODO Auto-generated method stub
+					updateDeviceInfo();
+					++updateCount;
+				}
+				
+			}, 0, 1000);
+			mUpdateTimerStarted = true;
+		}
+	}
+	
+	private void updateDeviceInfo() {
+		if (mBTSocket.isConnected()) {
+			//mSendButton.setEnabled(true);
+			//Character a = Character.valueOf('A');
+			char a = updateCount%2==1? '0':'1';
+			try {
+				mBTOutputStream.write((int)a);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
     
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		//mButtonStart = (Button) findViewById(R.id.buttonStart);
+		
+		BluetoothDevice finalDevice = this.getIntent().getParcelableExtra(	BluetoothDevice.EXTRA_DEVICE);
+		BatmanApplication app = (BatmanApplication) getApplicationContext();
+		mBTCurrentDevice = app.getDevice();
+		if (finalDevice == null) {
+			if (mBTCurrentDevice == null) {
+				Log.d(TAG, "Search Device");
+				//Intent intent = new Intent(this, SearchDeviceActivity.class);
+				//startActivity(intent);
+				//finish();
+				//return;
+			}
+		} else if (finalDevice != null) {
+			Log.d(TAG, "Bluetooth finalDevice is "+finalDevice);
+			app.setDevice(finalDevice);
+			mBTCurrentDevice = app.getDevice();
+
+			new Thread() {
+				public void run() {
+					connect(mBTCurrentDevice);
+				};
+			}.start();
+		}
+		
 		
 		mSendButton = (Button) findViewById(R.id.buttonStart);
 		//mSendButton.setEnabled(false);
@@ -150,6 +206,14 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		// TODO Auto-generated method stub
+		if (requestCode == REQUEST_DISCOVERY) {
+			final BluetoothDevice device = data.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+			new Thread() {
+				public void run() {
+					connect(device);
+				};
+			}.start();
+		}
 		if (requestCode == REQUEST_ENABLE_BT) {
 			if (mBluetoothAdapter.isEnabled()) {
 				//text.setText("Status: Enabled");
@@ -288,6 +352,7 @@ public class MainActivity extends Activity {
 		alertDialogBuilder.show();
 	}
 	
+	private BluetoothDevice mBTCurrentDevice;
 	private BluetoothSocket mBTSocket;
 	private InputStream mBTInputStream;
 	private OutputStream mBTOutputStream;
