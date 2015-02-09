@@ -11,6 +11,7 @@
     <string name="bluetooth_device_find_cancel">블루투스 장치 찾기 취소</string>
     <string name="connect_to_device">장치에 연결하기</string>
     <string name="send_to_device">장치로 보내기</string>
+    <string name="received_data_text">받은 데이터</string>
     
     <string name="about">그래택</string>
     

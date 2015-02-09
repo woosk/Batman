@@ -57,7 +57,8 @@ public class MainActivity extends Activity {
 	private Set<BluetoothDevice> mBTPairedDevices = null;
 	private ArrayAdapter<String> mBTDeviceInfosAdapter = null;
 	
-	private static final int MSG_BLUETOOTH_READ_DATA = 100;
+	private static final int MSG_SEND_DATA_BUTTON_ENABLED = 100;
+	private static final int MSG_BLUETOOTH_READ_DATA = 101;
 	
 	private final BroadcastReceiver mBTFoundReceiver = new BroadcastReceiver() {
 		public void onReceive(Context context, Intent intent) {
@@ -99,7 +100,7 @@ public class MainActivity extends Activity {
 		
 		@Override
 		public void onClick(View v) {
-			Log.d(TAG, "Send to device" + updateCount%2);
+			Log.d(TAG, "Send to device " + updateCount%2);
 			//updateDeviceInfo();
 			updateTimerToggle();
 		}
@@ -153,9 +154,9 @@ public class MainActivity extends Activity {
 		
 		BluetoothDevice finalDevice = this.getIntent().getParcelableExtra(	BluetoothDevice.EXTRA_DEVICE);
 		BatmanApplication app = (BatmanApplication) getApplicationContext();
-		mBTCurrentDevice = app.getDevice();
+		BluetoothDevice currentDevice = app.getDevice();
 		if (finalDevice == null) {
-			if (mBTCurrentDevice == null) {
+			if (currentDevice == null) {
 				Log.d(TAG, "Search Device");
 				//Intent intent = new Intent(this, SearchDeviceActivity.class);
 				//startActivity(intent);
@@ -165,18 +166,12 @@ public class MainActivity extends Activity {
 		} else if (finalDevice != null) {
 			Log.d(TAG, "Bluetooth finalDevice is "+finalDevice);
 			app.setDevice(finalDevice);
-			mBTCurrentDevice = app.getDevice();
-
-			new Thread() {
-				public void run() {
-					connect(mBTCurrentDevice);
-				};
-			}.start();
+			new ConnectThread().start();
 		}
 		
 		
 		mSendButton = (Button) findViewById(R.id.buttonStart);
-		//mSendButton.setEnabled(false);
+		mSendButton.setEnabled(false);
 		mSendButton.setOnClickListener(mSendClickListener);
 		
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -195,6 +190,20 @@ public class MainActivity extends Activity {
 		registerReceiver(mBTPairReceiver, intent);
 		
 	}
+	
+	class ConnectThread extends Thread
+	{
+//		BluetoothDevice mDevice;
+//		ConnectThread(BluetoothDevice device) {
+//			mDevice = device;
+//		}
+		public void run() {
+			BatmanApplication app = (BatmanApplication) getApplicationContext();
+			if (app.getDevice()!=null) {
+				connect(app.getDevice());
+			}
+		};
+	}
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -206,14 +215,14 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		// TODO Auto-generated method stub
-		if (requestCode == REQUEST_DISCOVERY) {
-			final BluetoothDevice device = data.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-			new Thread() {
-				public void run() {
-					connect(device);
-				};
-			}.start();
-		}
+//		if (requestCode == REQUEST_DISCOVERY) {
+//			final BluetoothDevice device = data.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+//			new Thread() {
+//				public void run() {
+//					connect(device);
+//				};
+//			}.start();
+//		}
 		if (requestCode == REQUEST_ENABLE_BT) {
 			if (mBluetoothAdapter.isEnabled()) {
 				//text.setText("Status: Enabled");
@@ -232,6 +241,19 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onDestroy() {
 		// TODO Auto-generated method stub
+		
+		if (mBTSocket != null) {
+			try {
+				Log.d(TAG, ">>Client Socket Close");
+				mBTSocket.close();
+				mBTSocket = null;
+				// this.finish();
+				return;
+			} catch (IOException e) {
+				Log.e(TAG, ">>", e);
+			}
+		}
+		
 		if (!mBluetoothEnabled) {
 			onBluetoothOff();
 		}
@@ -332,11 +354,8 @@ public class MainActivity extends Activity {
 				Log.e(TAG, "selected "+strName);
 				final BluetoothDevice device = (BluetoothDevice)(mBTPairedDevices.toArray()[which]);
 				if (device!=null) {
-					new Thread() {
-						public void run() {
-							connect(device);
-						};
-					}.start();
+					((BatmanApplication)getApplication()).setDevice(device);
+					new ConnectThread().start();
 				}
 			}
 		});
@@ -352,7 +371,6 @@ public class MainActivity extends Activity {
 		alertDialogBuilder.show();
 	}
 	
-	private BluetoothDevice mBTCurrentDevice;
 	private BluetoothSocket mBTSocket;
 	private InputStream mBTInputStream;
 	private OutputStream mBTOutputStream;
@@ -373,6 +391,11 @@ public class MainActivity extends Activity {
 				//Log.d(TAG, "mBTConnectHandler : writeMessage=" + writeMessage);
 				Log.d(TAG, "mBTConnectHandler : writeMessage=" + (String)(msg.obj));
 				break;
+			case MSG_SEND_DATA_BUTTON_ENABLED:
+				Log.d(TAG, "mBTConnectHandler : MSG_SEND_DATA_BUTTON_ENABLED=" + msg.arg1);
+				mSendButton.setEnabled(msg.arg1==1?true:false);
+				//mSendButton.setVisibility(visibility);
+				break;
 			}
 			super.handleMessage(msg);
 		}
@@ -381,6 +404,14 @@ public class MainActivity extends Activity {
 	private final int mBTReadMaxLength = 2048;
 	
 	protected void connect(BluetoothDevice device) {
+		if (device==null) {
+			//Toast.makeText(getApplicationContext(), "디바이스가 없습니다.", Toast.LENGTH_LONG).show();
+			Log.d(TAG, "디바이스가 없습니다.");
+		}
+		if (mBTSocket!=null && mBTSocket.isConnected()) {
+			Log.d(TAG, "이미 연결 되었습니다. device=" + mBTSocket.getRemoteDevice().getName());
+			return;
+		}
 		try {
 			Log.d(TAG, "연결중...");
 			// Create a Socket connection: need the server's UUID number of
@@ -389,7 +420,7 @@ public class MainActivity extends Activity {
 					new Class[] { int.class });
 			mBTSocket = (BluetoothSocket) m.invoke(device, 1);
 			mBTSocket.connect();
-			Log.d(TAG, ">>Client connectted");
+			Log.d(TAG, ">>Client connected");
 
 //			if (mBTSocket.isConnected()) {
 //				mSendButton.setEnabled(true);
@@ -401,6 +432,9 @@ public class MainActivity extends Activity {
 			final byte[] buffer = new byte[mBTReadMaxLength];
 			Arrays.fill( buffer, (byte) 0 );
 			final StringBuilder outString = new StringBuilder();
+			
+			mBTConnectHandler.obtainMessage(MSG_SEND_DATA_BUTTON_ENABLED, 1, 0).sendToTarget();
+
 			while (true) {
 				synchronized (mBTConnectSyncObject) {
 					/*
@@ -433,7 +467,7 @@ public class MainActivity extends Activity {
 							Log.d(TAG, "append: count="+i+" char="+new String(Character.toChars(buffer[i])) + " code=" +buffer[i]);
 							//Log.d(TAG, "append:"+buffer[i]);
 							if (buffer[i]==10) {	// Carriage return: 13, Line feed: 10
-								Log.d(TAG, "test1:" + outString.toString());
+								Log.d(TAG, "test1=" + outString.toString());
 								mBTConnectHandler.obtainMessage(MSG_BLUETOOTH_READ_DATA, begin, outString.toString().length(), outString.toString()).sendToTarget();
 								outString.setLength(0);
 							}
@@ -488,6 +522,7 @@ public class MainActivity extends Activity {
 			if (mBTSocket != null) {
 				try {
 					Log.d(TAG, ">>Client Socket Close");
+					mBTConnectHandler.obtainMessage(MSG_SEND_DATA_BUTTON_ENABLED, 0, 0).sendToTarget();
 					mBTSocket.close();
 					mBTSocket = null;
 					// this.finish();
