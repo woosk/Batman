@@ -54,8 +54,10 @@ public class MainActivity extends Activity {
 	private static final int REQUEST_ENABLE_BT = 2;
 	private BluetoothAdapter mBluetoothAdapter;
     
+	private Button mBtnConnect;		// button_connect
 	private Button mBtnTimerStart;
 	private Button mBtnSendMessage;	// buttonSendMessage
+	private TextView mTVStatus;
 	private TextView mTVReceivedMessage;
 	
 	private Set<BluetoothDevice> mBTPairedDevices = null;
@@ -112,13 +114,24 @@ public class MainActivity extends Activity {
 			else if (v.getId() == R.id.buttonSendMessage) {
 				onSendMessage();
 			}
+			else if (v.getId() == R.id.button_connect) {
+				onConnectToDevice();
+			}
 		}
 	};
+	
+	private void onConnectToDevice() {
+		showDialogBluetoothDevices();
+	}
 	
 	private void onSendMessage() {
 		if (mBTSocket.isConnected()) {
 			EditText editText = (EditText) findViewById(R.id.send_data_string);
 			Editable edit = editText.getText();
+			if (edit.length()<=0) {
+				mTVStatus.setText("문자를 입력하세요.");
+				return;
+			}
 			char a = edit.charAt(0);
 			try {
 				mBTOutputStream.write((int)a);
@@ -192,6 +205,8 @@ public class MainActivity extends Activity {
 			new ConnectThread().start();
 		}
 		
+		mBtnConnect = (Button) findViewById(R.id.button_connect);
+		mBtnConnect.setOnClickListener(mSendClickListener);
 		
 		mBtnTimerStart = (Button) findViewById(R.id.buttonStart);
 		mBtnTimerStart.setEnabled(false);
@@ -202,6 +217,9 @@ public class MainActivity extends Activity {
 		mBtnSendMessage.setOnClickListener(mSendClickListener);
 		
 		mTVReceivedMessage = (TextView) findViewById(R.id.received_message);
+		
+		mTVStatus = (TextView) findViewById(R.id.tv_status_message);
+		
 		
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -334,8 +352,7 @@ public class MainActivity extends Activity {
 		
 		//item.getItemId() == 장치연결
 		if (item.getItemId()==R.id.menu_show_paired_devices) {
-			//onConnectDevice();
-			showDialogBluetoothDevices();
+			onConnectToDevice();
 		}
 		
 		return super.onMenuItemSelected(featureId, item);
@@ -359,7 +376,6 @@ public class MainActivity extends Activity {
             e.printStackTrace();
         }
     }
-
 	
 	private void showDialogBluetoothDevices() {
 		//String names[] ={"A","B","C","D"};
@@ -423,6 +439,7 @@ public class MainActivity extends Activity {
 				break;
 			case MSG_SEND_DATA_BUTTON_ENABLED:
 				Log.d(TAG, "mBTConnectHandler : MSG_SEND_DATA_BUTTON_ENABLED=" + msg.arg1);
+				mBtnConnect.setEnabled(msg.arg1==1?false:true);
 				mBtnTimerStart.setEnabled(msg.arg1==1?true:false);
 				mBtnSendMessage.setEnabled(msg.arg1==1?true:false);
 				//mSendButton.setVisibility(visibility);

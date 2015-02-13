@@ -15,6 +15,34 @@
         android:orientation="horizontal" >
 
         <Button
+            android:id="@+id/button_connect"
+            android:layout_width="115dp"
+            android:layout_height="wrap_content"
+            android:text="@string/connect_to_device" />
+
+        <TextView
+            android:id="@+id/tv_status_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/background_light"
+            android:gravity="center_vertical"
+            android:hint="@string/status_text"
+            android:paddingLeft="3dp"
+            android:textSize="18sp" />
+
+        
+    </LinearLayout>
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+       	android:paddingTop="2dp"
+       	android:paddingBottom="2dp"
+		android:paddingLeft="3dp"
+		android:paddingRight="6dp"
+        android:orientation="horizontal" >
+
+        <Button
             android:id="@+id/buttonSendMessage"
             android:layout_width="115dp"
             android:layout_height="wrap_content"
