@@ -27,6 +27,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.text.Editable;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -36,6 +37,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -52,7 +54,9 @@ public class MainActivity extends Activity {
 	private static final int REQUEST_ENABLE_BT = 2;
 	private BluetoothAdapter mBluetoothAdapter;
     
-	private Button mSendButton;
+	private Button mBtnTimerStart;
+	private Button mBtnSendMessage;	// buttonSendMessage
+	private TextView mTVReceivedMessage;
 	
 	private Set<BluetoothDevice> mBTPairedDevices = null;
 	private ArrayAdapter<String> mBTDeviceInfosAdapter = null;
@@ -102,9 +106,28 @@ public class MainActivity extends Activity {
 		public void onClick(View v) {
 			Log.d(TAG, "Send to device " + updateCount%2);
 			//updateDeviceInfo();
-			updateTimerToggle();
+			if (v.getId() == R.id.buttonStart) {
+				updateTimerToggle();
+			}
+			else if (v.getId() == R.id.buttonSendMessage) {
+				onSendMessage();
+			}
 		}
 	};
+	
+	private void onSendMessage() {
+		if (mBTSocket.isConnected()) {
+			EditText editText = (EditText) findViewById(R.id.send_data_string);
+			Editable edit = editText.getText();
+			char a = edit.charAt(0);
+			try {
+				mBTOutputStream.write((int)a);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
 	
 	private boolean mUpdateTimerStarted = false;
 	private Timer mUpdateTimer;
@@ -170,9 +193,15 @@ public class MainActivity extends Activity {
 		}
 		
 		
-		mSendButton = (Button) findViewById(R.id.buttonStart);
-		mSendButton.setEnabled(false);
-		mSendButton.setOnClickListener(mSendClickListener);
+		mBtnTimerStart = (Button) findViewById(R.id.buttonStart);
+		mBtnTimerStart.setEnabled(false);
+		mBtnTimerStart.setOnClickListener(mSendClickListener);
+		
+		mBtnSendMessage =  (Button) findViewById(R.id.buttonSendMessage);
+		mBtnSendMessage.setEnabled(false);
+		mBtnSendMessage.setOnClickListener(mSendClickListener);
+		
+		mTVReceivedMessage = (TextView) findViewById(R.id.received_message);
 		
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -390,10 +419,12 @@ public class MainActivity extends Activity {
 				
 				//Log.d(TAG, "mBTConnectHandler : writeMessage=" + writeMessage);
 				Log.d(TAG, "mBTConnectHandler : writeMessage=" + (String)(msg.obj));
+				mTVReceivedMessage.setText((String)(msg.obj));
 				break;
 			case MSG_SEND_DATA_BUTTON_ENABLED:
 				Log.d(TAG, "mBTConnectHandler : MSG_SEND_DATA_BUTTON_ENABLED=" + msg.arg1);
-				mSendButton.setEnabled(msg.arg1==1?true:false);
+				mBtnTimerStart.setEnabled(msg.arg1==1?true:false);
+				mBtnSendMessage.setEnabled(msg.arg1==1?true:false);
 				//mSendButton.setVisibility(visibility);
 				break;
 			}

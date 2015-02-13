@@ -15,17 +15,25 @@
         android:orientation="horizontal" >
 
         <Button
-            android:id="@+id/buttonStart"
+            android:id="@+id/buttonSendMessage"
             android:layout_width="115dp"
             android:layout_height="wrap_content"
             android:text="@string/send_to_device" />
 
         <EditText
             android:id="@+id/send_data_string"
-            android:layout_width="match_parent"
+            android:layout_width="200dp"
             android:layout_height="36dp"
             android:textSize="18sp"
             android:hint="보낼 문자 입력" />
+
+        <Button
+            android:id="@+id/buttonStart"
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="left"
+            android:text="@string/auto_update" />
+        
     </LinearLayout>
 
     <LinearLayout
