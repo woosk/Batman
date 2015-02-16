@@ -2,9 +2,9 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android" >
 	<item android:id="@android:id/secondaryProgress">
 		<shape
-			android:innerRadiusRatio="3"
+			android:innerRadiusRatio="3.2"
 			android:shape="ring"
-			android:thicknessRatio="18.0">
+			android:thicknessRatio="8.0">
 			 
 			<gradient
 				android:startColor="#999999"
@@ -20,9 +20,9 @@
 			android:pivotY="50%"
 			android:toDegrees="270" >
 			<shape
-				android:innerRadiusRatio="3"
+				android:innerRadiusRatio="3.2"
 				android:shape="ring"
-				android:thicknessRatio="18.0">
+				android:thicknessRatio="8.0">
 				<rotate
 					android:fromDegrees="0"
 					android:toDegrees="360"

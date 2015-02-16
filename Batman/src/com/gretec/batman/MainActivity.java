@@ -4,7 +4,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.Timer;
@@ -48,15 +50,47 @@ public class MainActivity extends Activity {
 	//private ProgressDialog mProgressDialog;
 	//private Button 			mButtonStart;
 	private Boolean 			mBluetoothEnabled = false;
-    private ProgressBar 		mProgress;
+    private ProgressBar [] 		mProgress = new ProgressBar[6];
+    
+    private static final String FunctionButtonName[] = {
+    	"Fuel",
+    	"Capacity",
+    	"Voltage",
+    	"Ampere",
+    	"Temperature",
+    	"Time"
+    };
+    
+    private static final Integer ID_PROGRESS_BAR[] = {
+    	R.id.circular_progress_1,
+    	R.id.circular_progress_2,
+    	R.id.circular_progress_3,
+    	R.id.circular_progress_4,
+    	R.id.circular_progress_5,
+    	R.id.circular_progress_6,
+    };
+    
+    private static final Integer ID_FUNCTION_BUTTON[] = {
+    	R.id.button_fuel,
+    	R.id.button_capacity,
+    	R.id.button_voltage,
+    	R.id.button_ampere,
+    	R.id.button_temperature,
+    	R.id.button_time,
+    };
     
     private static final int REQUEST_DISCOVERY	= 1;
 	private static final int REQUEST_ENABLE_BT = 2;
+	
+	private int mLastResultIndex = 0;
 	private BluetoothAdapter mBluetoothAdapter;
     
 	private Button mBtnConnect;		// button_connect
 	private Button mBtnTimerStart;
 	private Button mBtnSendMessage;	// buttonSendMessage
+
+	private Button mBtnFunction[] = new Button[6];	// Function buttons
+	
 	private TextView mTVStatus;
 	private TextView mTVReceivedMessage;
 	
@@ -117,6 +151,14 @@ public class MainActivity extends Activity {
 			else if (v.getId() == R.id.button_connect) {
 				onConnectToDevice();
 			}
+			else {
+				final int id = v.getId();
+				ArrayList<Integer> functionButtonArray = new ArrayList<Integer>(Arrays.asList(ID_FUNCTION_BUTTON));
+				if (functionButtonArray.contains(id)) {
+					int idx = functionButtonArray.indexOf(id);
+					onFunctionButton(idx);
+				}
+			}
 		}
 	};
 	
@@ -124,6 +166,18 @@ public class MainActivity extends Activity {
 		showDialogBluetoothDevices();
 	}
 	
+	private void onFunctionButton(int idx) {
+		if (mBTSocket.isConnected()) {
+			mLastResultIndex = idx;
+			char a = (char)(((int)'a')+idx);
+			try {
+				mBTOutputStream.write((int)a);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 	private void onSendMessage() {
 		if (mBTSocket.isConnected()) {
 			EditText editText = (EditText) findViewById(R.id.send_data_string);
@@ -136,7 +190,6 @@ public class MainActivity extends Activity {
 			try {
 				mBTOutputStream.write((int)a);
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -158,7 +211,6 @@ public class MainActivity extends Activity {
 	
 				@Override
 				public void run() {
-					// TODO Auto-generated method stub
 					updateDeviceInfo();
 					++updateCount;
 				}
@@ -172,11 +224,11 @@ public class MainActivity extends Activity {
 		if (mBTSocket.isConnected()) {
 			//mSendButton.setEnabled(true);
 			//Character a = Character.valueOf('A');
-			char a = updateCount%2==1? '0':'1';
+			char a = (char)(((int)'a')+updateCount%6);
 			try {
+				Log.d(TAG, "Send Data : "+a);
 				mBTOutputStream.write((int)a);
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -212,13 +264,18 @@ public class MainActivity extends Activity {
 		mBtnTimerStart.setEnabled(false);
 		mBtnTimerStart.setOnClickListener(mSendClickListener);
 		
-		mBtnSendMessage =  (Button) findViewById(R.id.buttonSendMessage);
+		mBtnSendMessage = (Button) findViewById(R.id.buttonSendMessage);
 		mBtnSendMessage.setEnabled(false);
 		mBtnSendMessage.setOnClickListener(mSendClickListener);
 		
 		mTVReceivedMessage = (TextView) findViewById(R.id.received_message);
 		
 		mTVStatus = (TextView) findViewById(R.id.tv_status_message);
+		
+		for (int i =0; i< ID_FUNCTION_BUTTON.length; i++) {
+			mBtnFunction[i] = (Button) findViewById(ID_FUNCTION_BUTTON[i]);
+			mBtnFunction[i].setOnClickListener(mSendClickListener);
+		}
 		
 		
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -227,11 +284,18 @@ public class MainActivity extends Activity {
 		Resources res = getResources();
 		Drawable drawable = res.getDrawable(R.drawable.circular);
 		
-		mProgress = (ProgressBar) findViewById(R.id.circularProgressbar);
-		mProgress.setProgress(25);   // Main Progress
-		//mProgress.setSecondaryProgress(50); // Secondary Progress
-		mProgress.setMax(100); // Maximum Progress
-		mProgress.setProgressDrawable(drawable);
+		for (int i =0; i< ID_PROGRESS_BAR.length; i++) {
+			mProgress[i] = (ProgressBar) findViewById(ID_PROGRESS_BAR[i]);
+			mProgress[i].setProgress(0);   // Main Progress
+			//mProgress.setSecondaryProgress(50); // Secondary Progress
+			mProgress[i].setMax(100); // Maximum Progress
+			mProgress[i].setProgressDrawable(drawable);
+		}
+//		mProgress = (ProgressBar) findViewById(R.id.circular_progress_1);
+//		mProgress.setProgress(0);   // Main Progress
+//		//mProgress.setSecondaryProgress(50); // Secondary Progress
+//		mProgress.setMax(100); // Maximum Progress
+//		mProgress.setProgressDrawable(drawable);
 		
 		IntentFilter intent = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
 		registerReceiver(mBTPairReceiver, intent);
@@ -261,7 +325,6 @@ public class MainActivity extends Activity {
     
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		// TODO Auto-generated method stub
 //		if (requestCode == REQUEST_DISCOVERY) {
 //			final BluetoothDevice device = data.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 //			new Thread() {
@@ -280,31 +343,29 @@ public class MainActivity extends Activity {
 	}
 	@Override
 	protected void onResume() {
-		// TODO Auto-generated method stub
 		onBluetoothOn();
 		super.onResume();
 	}
 
 	@Override
 	protected void onDestroy() {
-		// TODO Auto-generated method stub
-		
 		if (mBTSocket != null) {
 			try {
 				Log.d(TAG, ">>Client Socket Close");
 				mBTSocket.close();
 				mBTSocket = null;
 				// this.finish();
-				return;
+				//return;
 			} catch (IOException e) {
 				Log.e(TAG, ">>", e);
 			}
 		}
 		
+		unregisterReceiver(mBTFoundReceiver);
+
 		if (!mBluetoothEnabled) {
 			onBluetoothOff();
 		}
-		unregisterReceiver(mBTFoundReceiver);
 		super.onDestroy();
 	}
 	
@@ -346,8 +407,6 @@ public class MainActivity extends Activity {
 
 	@Override
 	public boolean onMenuItemSelected(int featureId, MenuItem item) {
-		// TODO Auto-generated method stub
-		
 		Log.e(TAG, "onMenuItemSelected featureId="+featureId+" MenuItemId="+item.getItemId()+" MenuItem="+item);
 		
 		//item.getItemId() == 장치연결
@@ -436,12 +495,17 @@ public class MainActivity extends Activity {
 				//Log.d(TAG, "mBTConnectHandler : writeMessage=" + writeMessage);
 				Log.d(TAG, "mBTConnectHandler : writeMessage=" + (String)(msg.obj));
 				mTVReceivedMessage.setText((String)(msg.obj));
+				Float value = Float.parseFloat((String)(msg.obj));
+				mProgress[mLastResultIndex].setProgress(value.intValue());
 				break;
 			case MSG_SEND_DATA_BUTTON_ENABLED:
 				Log.d(TAG, "mBTConnectHandler : MSG_SEND_DATA_BUTTON_ENABLED=" + msg.arg1);
 				mBtnConnect.setEnabled(msg.arg1==1?false:true);
 				mBtnTimerStart.setEnabled(msg.arg1==1?true:false);
 				mBtnSendMessage.setEnabled(msg.arg1==1?true:false);
+				for (int i =0; i< ID_FUNCTION_BUTTON.length; i++) {
+					mBtnFunction[i].setEnabled(msg.arg1==1?true:false);
+				}
 				//mSendButton.setVisibility(visibility);
 				break;
 			}
