@@ -8,6 +8,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -50,7 +51,6 @@ public class MainActivity extends Activity {
 	//private ProgressDialog mProgressDialog;
 	//private Button 			mButtonStart;
 	private Boolean 			mBluetoothEnabled = false;
-    private ProgressBar [] 		mProgress = new ProgressBar[6];
     
     private static final String FunctionButtonName[] = {
     	"Fuel",
@@ -60,15 +60,24 @@ public class MainActivity extends Activity {
     	"Temperature",
     	"Time"
     };
-    
-    private static final Integer ID_PROGRESS_BAR[] = {
-    	R.id.circular_progress_1,
-    	R.id.circular_progress_2,
-    	R.id.circular_progress_3,
-    	R.id.circular_progress_4,
-    	R.id.circular_progress_5,
-    	R.id.circular_progress_6,
+
+    private static final Character ReceivedCharacter[] = {
+    	'F',
+    	'C',
+    	'V',
+    	'A',
+    	'T',
+    	'M' //time
     };
+
+//    private static final Integer ID_PROGRESS_BAR[] = {
+//    	R.id.circular_progress_1,
+//    	R.id.circular_progress_2,
+//    	R.id.circular_progress_3,
+//    	R.id.circular_progress_4,
+//    	R.id.circular_progress_5,
+//    	R.id.circular_progress_6,
+//    };
     
     private static final Integer ID_FUNCTION_BUTTON[] = {
     	R.id.button_fuel,
@@ -82,7 +91,6 @@ public class MainActivity extends Activity {
     private static final int REQUEST_DISCOVERY	= 1;
 	private static final int REQUEST_ENABLE_BT = 2;
 	
-	private int mLastResultIndex = 0;
 	private BluetoothAdapter mBluetoothAdapter;
     
 	private Button mBtnConnect;		// button_connect
@@ -90,7 +98,12 @@ public class MainActivity extends Activity {
 	private Button mBtnSendMessage;	// buttonSendMessage
 
 	private Button mBtnFunction[] = new Button[6];	// Function buttons
-	
+
+    //private ProgressBar mProgress[] = new ProgressBar[ID_PROGRESS_BAR.length];
+
+    private ProgressBar 	mProgress;
+	private TextView 		mProgressTitle;
+
 	private TextView mTVStatus;
 	private TextView mTVReceivedMessage;
 	
@@ -168,7 +181,6 @@ public class MainActivity extends Activity {
 	
 	private void onFunctionButton(int idx) {
 		if (mBTSocket.isConnected()) {
-			mLastResultIndex = idx;
 			char a = (char)(((int)'a')+idx);
 			try {
 				mBTOutputStream.write((int)a);
@@ -272,7 +284,7 @@ public class MainActivity extends Activity {
 		
 		mTVStatus = (TextView) findViewById(R.id.tv_status_message);
 		
-		for (int i =0; i< ID_FUNCTION_BUTTON.length; i++) {
+		for (int i=0; i<ID_FUNCTION_BUTTON.length; i++) {
 			mBtnFunction[i] = (Button) findViewById(ID_FUNCTION_BUTTON[i]);
 			mBtnFunction[i].setOnClickListener(mSendClickListener);
 		}
@@ -284,19 +296,36 @@ public class MainActivity extends Activity {
 		Resources res = getResources();
 		Drawable drawable = res.getDrawable(R.drawable.circular);
 		
-		for (int i =0; i< ID_PROGRESS_BAR.length; i++) {
+/*
+		Random r = new Random();
+		for (int i=0; i<ID_PROGRESS_BAR.length; i++) {
 			mProgress[i] = (ProgressBar) findViewById(ID_PROGRESS_BAR[i]);
-			mProgress[i].setProgress(0);   // Main Progress
+			mProgress[i].setProgress(r.nextInt(100));   // Main Progress
 			//mProgress.setSecondaryProgress(50); // Secondary Progress
 			mProgress[i].setMax(100); // Maximum Progress
 			mProgress[i].setProgressDrawable(drawable);
+			Log.d(TAG, "find progress index="+i+", id="+ID_PROGRESS_BAR[i]+", mProgress[i]="+mProgress[i]);
 		}
-//		mProgress = (ProgressBar) findViewById(R.id.circular_progress_1);
-//		mProgress.setProgress(0);   // Main Progress
-//		//mProgress.setSecondaryProgress(50); // Secondary Progress
-//		mProgress.setMax(100); // Maximum Progress
-//		mProgress.setProgressDrawable(drawable);
+*/
+		mProgress = (ProgressBar) findViewById(R.id.circular_progress_1);
+		mProgress.setProgress(0);   // Main Progress
+		//mProgress.setSecondaryProgress(50); // Secondary Progress
+		mProgress.setMax(100); // Maximum Progress
+		mProgress.setProgressDrawable(drawable);
 		
+		mProgressTitle = (TextView) findViewById(R.id.circular_progress_title);
+
+//		mProgress1 = (ProgressBar) findViewById(R.id.circular_progress_1);
+//		mProgress1.setProgress(20);   // Main Progress
+//		//mProgress.setSecondaryProgress(50); // Secondary Progress
+//		mProgress1.setMax(100); // Maximum Progress
+//		mProgress1.setProgressDrawable(drawable);
+//		mProgress2 = (ProgressBar) findViewById(R.id.circular_progress_2);
+//		mProgress2.setProgress(60);   // Main Progress
+//		//mProgress.setSecondaryProgress(50); // Secondary Progress
+//		mProgress2.setMax(100); // Maximum Progress
+//		mProgress2.setProgressDrawable(drawable);
+
 		IntentFilter intent = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
 		registerReceiver(mBTPairReceiver, intent);
 		
@@ -481,22 +510,38 @@ public class MainActivity extends Activity {
 	private Object mBTConnectSyncObject = new Object();
 	private Handler mBTConnectHandler = new Handler() {
 
-		@Override
-		public void handleMessage(Message msg) {
+	@Override
+	public void handleMessage(Message msg) {
 //			byte[] writeBuf = (byte[]) msg.obj;
 //			int begin = (int) msg.arg1;
 //			int end = (int) msg.arg2;
 
-			switch (msg.what) {
+		switch (msg.what) {
 			case MSG_BLUETOOTH_READ_DATA:
 				//String writeMessage = new String(writeBuf);
 				//writeMessage = writeMessage.substring(begin, end);
 				
 				//Log.d(TAG, "mBTConnectHandler : writeMessage=" + writeMessage);
-				Log.d(TAG, "mBTConnectHandler : writeMessage=" + (String)(msg.obj));
-				mTVReceivedMessage.setText((String)(msg.obj));
-				Float value = Float.parseFloat((String)(msg.obj));
-				mProgress[mLastResultIndex].setProgress(value.intValue());
+				
+				final String receivedString = (String)(msg.obj);
+				Log.d(TAG, "mBTConnectHandler : writeMessage=" + receivedString);
+				mTVReceivedMessage.setText(receivedString);
+
+				parseReceivedMessage(receivedString);
+
+//				char c = receivedString.charAt(0);
+//				ArrayList<Character> receivedCharArray = new ArrayList<Character>(Arrays.asList(ReceivedCharacter));
+//				Log.d(TAG, "mBTConnectHandler : First=" + c);
+//				if (receivedCharArray.contains(Character.valueOf(c))) {
+//					int idx = receivedCharArray.indexOf(Character.valueOf(c));
+//					String valueString = receivedString.substring(1);
+//					Log.d(TAG, "mBTConnectHandler : First=" + c + ", Index=" + idx + ", valueString=" + valueString + ", mProgress[idx]=" + mProgress[idx]);
+//					//if (idx!=2) 
+//					{
+//						Float value = Float.parseFloat(valueString);
+//						mProgress[idx].setProgress(value.intValue());
+//					}
+//				}
 				break;
 			case MSG_SEND_DATA_BUTTON_ENABLED:
 				Log.d(TAG, "mBTConnectHandler : MSG_SEND_DATA_BUTTON_ENABLED=" + msg.arg1);
@@ -511,6 +556,52 @@ public class MainActivity extends Activity {
 			}
 			super.handleMessage(msg);
 		}
+
+	private void parseReceivedMessage(String receivedString) {
+		// TODO Auto-generated method stub
+		char c = receivedString.charAt(0);
+		ArrayList<Character> receivedCharArray = new ArrayList<Character>(Arrays.asList(ReceivedCharacter));
+		Log.d(TAG, "parseReceivedMessage : First=" + c);
+		if (receivedCharArray.contains(Character.valueOf(c))) {
+			int idx = receivedCharArray.indexOf(Character.valueOf(c));
+			String valueString = receivedString.substring(1);
+			//Log.d(TAG, "parseReceivedMessage : First=" + c + ", Index=" + idx + ", valueString=" + valueString + ", mProgress[idx]=" + mProgress[idx]);
+			Log.d(TAG, "parseReceivedMessage : First=" + c + ", Index=" + idx + ", valueString=" + valueString);
+			int value = 0;
+			Float tempValue = 0.0f;
+			switch (idx) {
+			case 0:		// F, Fuel, 			0~100 %
+				tempValue = Float.parseFloat(valueString);
+				break;
+			case 1:		// C, Capacity,			0~10000
+				tempValue = (Float.parseFloat(valueString))/100.0f;
+				break;
+			case 2:		// V, Voltage,			0~15.00V
+				tempValue = (Float.parseFloat(valueString)/15.0f)*100.0f;
+				break;
+			case 3:		// A, current Ampere	0~10000
+				tempValue = (Float.parseFloat(valueString))/100.0f;
+				break;
+			case 4:		// T, Temperature		0~120.0
+				tempValue = Float.parseFloat(valueString)/120.0f*100f;
+				break;
+			case 5:		// M, available tiMe	0~6000
+				tempValue = Float.parseFloat(valueString);
+				int t = tempValue.intValue();
+				int hours = t / 60;
+				int minutes = t % 60;
+				mTVReceivedMessage.append(String.format("\t 남은시간:%02d시간 %02d분", hours, minutes));
+				tempValue = (tempValue)/1440.0f*100.0f;
+				break;
+			default:
+				break;
+			}
+			mProgressTitle.setText(FunctionButtonName[idx]);
+			mProgress.setProgress(tempValue.intValue());
+			//Float value = Float.parseFloat(valueString);
+			//mProgress[idx].setProgress(value.intValue());
+		}		
+	}
 		
 	};
 	private final int mBTReadMaxLength = 2048;
